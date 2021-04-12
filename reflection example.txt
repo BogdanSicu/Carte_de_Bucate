@@ -1,0 +1,44 @@
+     [HttpPatch("details")]
+        [Authorize(AuthenticationSchemes = "MemberAuthScheme, SuperAdminAuthScheme, AdminAuthScheme")]
+        public IActionResult UpdateUserDetails([FromBody] IDictionary<string, string> properties)
+        {
+            var userId = new Guid(User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.NameIdentifier).Value);
+            _userService.UpdateUserDetails(userId, properties);
+
+            return Ok();
+        } 
+
+
+
+--------------------------
+ public void UpdateUserDetails(Guid userId, IDictionary<string, string> properties)
+        {
+            if (properties == null)
+            {
+                throw new AppException("Input is null", System.Net.HttpStatusCode.BadRequest, false);
+            }
+
+            var userDetails = _context.Users.Include(d => d.UserDetails).FirstOrDefault(d => d.Id == userId).UserDetails;
+
+            if (userDetails == null)
+            {
+                throw new AppException("details not found", System.Net.HttpStatusCode.NotFound, false);
+            }
+            foreach (var property in properties)
+            {
+                var dbProperty = userDetails.GetType().GetProperty(property.Key);
+                if (dbProperty != null)
+                {
+                    dbProperty.SetValue(userDetails, property.Value, null);
+                }
+                else
+                {
+                    throw new AppException("Could not update these properties", System.Net.HttpStatusCode.NotFound, false);
+                }
+
+            }
+
+            _context.UserDetails.Update(userDetails);
+            _context.SaveChanges();
+
+        }
